@@ -1,0 +1,989 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>حاسبة تركس وكونكان</title>
+<meta name="theme-color" content="#0a0b0c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="تركس">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@500;700&family=Tajawal:wght@400;500;700&display=swap">
+<style>
+/* Layout: one-column phone app on a card-table black. Red and silver come from the ace icon. */
+:root{
+  --bg:#0a0b0c;
+  --bg-glow:#1b2026;
+  --surface:#14171a;
+  --surface-2:#1c2024;
+  --line:#2b3036;
+  --fg:#eef0f2;
+  --muted:#8e969e;
+  --silver:#c8cdd3;
+  --accent:#d93a40;
+  --accent-ink:#ffffff;
+  --accent-soft:#2a1416;
+  --pos:#4cc38a;
+  --neg:#ff7a7a;
+  --shade:rgba(0,0,0,.62);
+  --font-display:"Reem Kufi","Tajawal",system-ui,sans-serif;
+  --font-body:"Tajawal",system-ui,"Segoe UI",Tahoma,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background-color:var(--bg);
+  color:var(--fg);
+  font:16px/1.5 var(--font-body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  -webkit-tap-highlight-color:transparent;
+  overflow-x:hidden;
+}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+#app{min-height:100%;display:flex;flex-direction:column;max-width:520px;margin-inline:auto;padding-block:0 28px}
+button{font:inherit;color:inherit;cursor:pointer}
+input{font:inherit;color:inherit}
+h1,h2,h3,p{margin:0}
+:focus-visible{outline:2px solid var(--silver);outline-offset:2px}
+.num{direction:ltr;unicode-bidi:isolate;display:inline-block;font-variant-numeric:tabular-nums}
+.num.neg{color:var(--neg)}
+.num.pos{color:var(--pos)}
+.num.zero{color:var(--muted)}
+
+/* top bar */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:flex;align-items:center;gap:10px;min-height:60px;background:var(--bg)}
+.top h2{flex:1;font:700 20px var(--font-display);text-align:start}
+.icon-btn{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;padding:0}
+.icon-btn svg{width:20px;height:20px;stroke:var(--silver);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* buttons */
+.btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:54px;padding:12px 18px;border-radius:14px;border:1px solid var(--line);background:var(--surface-2);font-weight:700}
+.btn.primary{background:var(--accent);border-color:transparent;color:var(--accent-ink)}
+.btn.big{min-height:68px;font:700 21px var(--font-display)}
+.btn.danger{background:transparent;border-color:#5a2427;color:var(--neg)}
+.btn[disabled]{opacity:.42;cursor:default}
+.btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.link{background:none;border:0;color:var(--silver);text-decoration:underline;text-underline-offset:4px;padding:10px;min-height:44px}
+.stack{display:flex;flex-direction:column;gap:12px}
+
+/* home */
+.home{flex:1;display:flex;flex-direction:column;justify-content:center;gap:34px;padding-top:max(24px,env(safe-area-inset-top,0px))}
+.hero{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}
+.logo{width:116px;height:116px;border-radius:28px;border:1px solid var(--line);box-shadow:0 18px 40px rgba(0,0,0,.55)}
+.hero h1{font:700 34px/1.2 var(--font-display);margin-top:12px}
+.hero .sub{color:var(--muted)}
+.resume{justify-content:space-between}
+.resume small{color:var(--muted);font-weight:500}
+.credit{text-align:center;color:var(--muted);font-size:14px;padding-top:6px}
+.home .credit{margin-top:auto}
+.steps{display:flex;flex-direction:column;gap:10px;padding:0;margin:0;list-style:none}
+.steps li{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;line-height:1.6}
+.steps b{color:var(--silver)}
+.ok-note{text-align:center;color:var(--pos);font-weight:700;padding:6px}
+
+/* setup */
+.lead{color:var(--muted);margin:2px 0 14px}
+.opt{display:flex;flex-direction:column;gap:2px;text-align:start;width:100%;padding:16px;border-radius:16px;border:1.5px solid var(--line);background:var(--surface)}
+.opt b{font:700 18px var(--font-display)}
+.opt span{color:var(--muted);font-size:14.5px}
+.opt[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label,.lbl{font-size:14px;color:var(--muted)}
+.field input,.val input{width:100%;min-height:50px;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:17px}
+.field input::placeholder{color:#59616a}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip-btn{min-width:56px;min-height:46px;padding:8px 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-weight:700;font-variant-numeric:tabular-nums}
+.chip-btn[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+details.vals{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:0 14px}
+details.vals summary{min-height:50px;display:flex;align-items:center;cursor:pointer;font-weight:700}
+details.vals .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:4px 0 16px}
+.val{display:flex;flex-direction:column;gap:4px;min-width:0}
+.val input{min-height:44px;font-size:16px;direction:ltr;text-align:center}
+.val span{font-size:13px;color:var(--muted)}
+.setup-body{display:flex;flex-direction:column;gap:18px;padding-bottom:8px}
+
+/* scoreboard */
+.board{display:grid;gap:10px;margin:6px 0 10px}
+.board.two{grid-template-columns:1fr 1fr}
+.side{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px 10px 12px;text-align:center;min-width:0}
+.side .nm{display:block;color:var(--silver);font-size:15px;overflow-wrap:anywhere}
+.side .big{display:block;font:700 44px/1.15 var(--font-display)}
+.meta{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.chip{display:inline-flex;align-items:center;min-height:32px;padding:2px 12px;border-radius:99px;background:var(--surface-2);border:1px solid var(--line);font-size:14px;font-weight:700}
+.kpts{font-size:14px;color:var(--muted)}
+.chip .num{margin-right:6px}
+
+/* kingdom rows */
+.sec{font:700 17px var(--font-display);margin:22px 0 10px}
+.rows{display:flex;flex-direction:column;gap:8px}
+.row{display:flex;align-items:center;gap:12px;width:100%;min-height:62px;padding:10px 14px;border-radius:14px;border:1px solid var(--line);background:var(--surface);text-align:start}
+.row[disabled]{cursor:default}
+.row .glyph{width:38px;height:38px;border-radius:10px;background:var(--surface-2);display:grid;place-items:center;font:700 20px var(--font-display);color:var(--silver);flex:none}
+.row .glyph.red{color:var(--accent)}
+.row .rname{flex:1;min-width:0;display:flex;flex-direction:column;font-weight:700;line-height:1.3}
+.row .rname small{color:var(--muted);font-weight:500;font-size:13px}
+.row .rpts{font-weight:700;font-size:15px;display:flex;gap:8px;align-items:center}
+.row .rpts i{color:var(--line);font-style:normal}
+.row .rpts em{color:var(--muted);font-style:normal;font-weight:500;font-size:13px}
+.row.done{background:var(--surface-2)}
+
+/* tables */
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+table{border-collapse:collapse;width:100%}
+th,td{padding:10px 12px;text-align:center;border-bottom:1px solid var(--line);font-weight:700;vertical-align:top}
+th[scope="row"],thead th:first-child{text-align:start;color:var(--silver)}
+thead th{font-size:14px;color:var(--silver);overflow-wrap:anywhere}
+td small{display:block;font-weight:500;font-size:12px;color:var(--muted)}
+tfoot th,tfoot td{border-bottom:0;background:var(--surface-2)}
+tr:last-child>*{border-bottom:0}
+.krow{cursor:pointer}
+.krow:active>*{background:var(--surface-2)}
+.note{font-size:13px;color:var(--muted);margin-top:8px}
+
+/* banner */
+.banner{background:var(--accent-soft);border:1px solid #5a2427;border-radius:16px;padding:14px 16px;margin-bottom:14px;display:flex;flex-direction:column;gap:10px}
+.banner b{font:700 19px var(--font-display)}
+.banner .two-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* konkan */
+.kcards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0 10px}
+.kcard{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px;min-width:0}
+.kcard.lead-card{border-color:var(--silver)}
+.kcard .nm{display:block;color:var(--silver);font-size:15px;overflow-wrap:anywhere}
+.kcard .big{display:block;font:700 36px/1.2 var(--font-display)}
+.track{direction:ltr;position:relative;height:8px;border-radius:99px;background:var(--surface-2);margin-top:8px;overflow:hidden}
+.track .fill{position:absolute;top:0;bottom:0;background:var(--pos)}
+.track .fill.neg{background:var(--neg)}
+.track .zero{position:absolute;top:0;bottom:0;width:2px;background:var(--muted)}
+.limits{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+
+/* history */
+.hcard{border:1px solid var(--line);border-radius:16px;background:var(--surface);margin-bottom:10px;overflow:hidden}
+.hcard summary{list-style:none;cursor:pointer;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.hcard summary::-webkit-details-marker{display:none}
+.hcard .h1{display:flex;justify-content:space-between;align-items:center;gap:10px;font-weight:700}
+.hcard .h1 small{color:var(--muted);font-weight:500}
+.hcard .h2{display:flex;gap:14px;flex-wrap:wrap;color:var(--silver);font-size:15px}
+.hcard .h2 b{font-weight:700}
+.hbody{padding:0 14px 14px;display:flex;flex-direction:column;gap:10px}
+.empty{color:var(--muted);text-align:center;padding:40px 10px}
+
+/* sheet */
+.shade{position:fixed;inset:0;background:var(--shade);z-index:20;animation:fade .15s ease-out}
+.sheet{position:fixed;inset-inline:0;bottom:0;margin-inline:auto;width:100%;max-width:520px;max-height:90%;overflow-y:auto;z-index:21;background:var(--surface);border:1px solid var(--line);border-bottom:0;border-radius:24px 24px 0 0;padding:10px max(16px,env(safe-area-inset-left,0px)) calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px;animation:rise .2s ease-out}
+.grab{width:42px;height:5px;border-radius:99px;background:var(--line);margin:0 auto 2px}
+.sheet h3{font:700 22px var(--font-display)}
+.sheet .hint{color:var(--muted);font-size:14.5px;margin-top:-8px}
+.q{font-weight:700}
+.numgrid{display:grid;gap:8px}
+.numgrid button{min-height:50px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);font-weight:700;font-size:18px;font-variant-numeric:tabular-nums;padding:6px}
+.numgrid button[aria-pressed="true"]{background:var(--accent);border-color:transparent;color:var(--accent-ink)}
+.numgrid.big button{min-height:58px;font-size:17px;overflow-wrap:anywhere}
+.preview{display:flex;justify-content:space-around;gap:10px;flex-wrap:wrap;padding:12px;border-radius:14px;background:var(--surface-2);border:1px dashed var(--line);font-weight:700;min-height:52px;align-items:center}
+.preview span.t{color:var(--muted);font-weight:500;margin-inline-end:6px;font-size:14px}
+.place{display:flex;align-items:center;gap:10px}
+.place .pl{width:92px;flex:none;line-height:1.25;font-weight:700}
+.place .pl small{display:block;color:var(--muted);font-weight:500}
+.place .seg{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:0}
+.place .seg button{min-height:46px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);font-weight:700;padding:4px 6px;overflow-wrap:anywhere;font-size:15px}
+.place .seg button[aria-pressed="true"]{background:var(--accent);border-color:transparent;color:var(--accent-ink)}
+.warn{color:var(--neg);font-size:14px}
+.pick-row{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;padding:10px 14px;border-radius:14px;border:1px solid var(--line);background:var(--surface-2);text-align:start}
+.pick-row[disabled]{opacity:.45;cursor:default}
+.pick-row .glyph{width:40px;height:40px;border-radius:10px;background:var(--bg);display:grid;place-items:center;font:700 21px var(--font-display);color:var(--silver);flex:none}
+.pick-row .glyph.red{color:var(--accent)}
+.pick-row .pn{flex:1;display:flex;flex-direction:column;font-weight:700;line-height:1.3}
+.pick-row .pn small{color:var(--muted);font-weight:500;font-size:13.5px}
+.pick-row .st{color:var(--pos);font-weight:700;font-size:14px}
+.kr{display:flex;align-items:center;gap:10px}
+.kr .who{flex:1;min-width:0;font-weight:700;overflow-wrap:anywhere}
+.kr .sg{width:50px;height:50px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);font:700 24px var(--font-display);flex:none;padding:0}
+.kr .sg.minus{color:var(--neg);border-color:#5a2427}
+.kr .sg.plus{color:var(--pos)}
+.kr input{width:118px;min-height:50px;padding:8px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);font-size:20px;font-weight:700;text-align:center;direction:ltr;flex:none}
+.two-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes rise{from{transform:translateY(24px);opacity:.4}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.shade,.sheet{animation:none}}
+</style>
+<style>
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+img{max-width:100%}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+<div id="sheet-root"></div>
+
+<script>
+(function(){
+'use strict';
+document.documentElement.setAttribute('dir','rtl');
+document.documentElement.setAttribute('lang','ar');
+
+/* ===================== LOGIC (pure) ===================== */
+// <logic>
+var MINUS = '−';
+var DEFAULT_VALS = { king:75, queen:25, diamond:10, slap:15, trex:[200,150,100,50] };
+var CONTRACTS = [
+  { id:'king',     name:'الملك',    glyph:'♥', red:true, max:1 },
+  { id:'queens',   name:'البنات',   glyph:'♠', max:4,  valKey:'queen' },
+  { id:'diamonds', name:'الديناري', glyph:'♦', red:true, max:13, valKey:'diamond' },
+  { id:'slaps',    name:'اللطوش',   glyph:'♣', max:13, valKey:'slap' },
+  { id:'trex',     name:'التركس',   glyph:'7', max:4 }
+];
+
+function contractOf(id){ for (var i=0;i<CONTRACTS.length;i++) if (CONTRACTS[i].id===id) return CONTRACTS[i]; return null; }
+function perOf(c, vals){ return c.id==='king' ? vals.king : vals[c.valKey]; }
+
+// inp: {count:n} for count games (count = what team A / "our team" took),
+//      {total:n} for trex (total = team A's points, team B gets the rest of the pool).
+//      Matches saved by older versions may still carry {places:[0|1 x4]}.
+function trexPool(vals){ return vals.trex.reduce(function(s,x){ return s+x; },0); }
+function trexTotals(arr){
+  var out=[];
+  for (var i=0;i<arr.length;i++) for (var j=i+1;j<arr.length;j++){
+    var s=arr[i]+arr[j]; if (out.indexOf(s)<0) out.push(s);
+  }
+  return out.sort(function(a,b){ return a-b; });
+}
+function trexTotalOf(m, inp){
+  if (typeof inp.total==='number') return inp.total;
+  var a=0;
+  if (inp.places) for (var i=0;i<4;i++) if (inp.places[i]===0) a+=m.vals.trex[i];
+  return a;
+}
+function calcPts(m, cid, inp){
+  var c = contractOf(cid), two = m.mode==='two';
+  if (cid==='trex'){
+    var a = trexTotalOf(m, inp);
+    return [a, two ? trexPool(m.vals)-a : null];
+  }
+  var per = perOf(c, m.vals);
+  return [ -per*inp.count, two ? -per*(c.max-inp.count) : null ];
+}
+function entryValid(m, cid, inp){
+  if (cid==='trex') return typeof inp.total==='number' && trexTotals(m.vals.trex).indexOf(inp.total)>=0;
+  return typeof inp.count==='number' && inp.count>=0 && inp.count<=contractOf(cid).max;
+}
+function setEntry(m, k, cid, inp){
+  var es = m.kingdoms[k] ? m.kingdoms[k].entries : [];
+  for (var i=0;i<es.length;i++) if (es[i].g===cid){ es[i].inp=inp; es[i].pts=calcPts(m,cid,inp); return true; }
+  return false;
+}
+function sumPts(entries, two){
+  var a=0,b=0;
+  entries.forEach(function(e){ a+=e.pts[0]; if (two) b+=e.pts[1]; });
+  return [a, two ? b : null];
+}
+function matchTotals(m){
+  var two = m.mode==='two', a=0, b=0;
+  m.kingdoms.forEach(function(k){ var t=sumPts(k.entries,two); a+=t[0]; if (two) b+=t[1]; });
+  return [a, two ? b : null];
+}
+function curKingdom(m){ return m.kingdoms[m.kingdoms.length-1]; }
+function trexAdd(m, cid, inp){
+  var k = curKingdom(m);
+  if (m.status==='finished') return null;
+  for (var i=0;i<k.entries.length;i++) if (k.entries[i].g===cid) return null;
+  k.entries.push({ g:cid, inp:inp, pts:calcPts(m,cid,inp) });
+  var kIndex = m.kingdoms.length-1, kingdomDone = k.entries.length===CONTRACTS.length, finished=false;
+  if (kingdomDone){
+    if (m.kingdoms.length>=m.total){ m.status='finished'; m.finishedAt=Date.now(); finished=true; }
+    else m.kingdoms.push({ entries:[] });
+  }
+  return { kingdomDone:kingdomDone, finished:finished, kIndex:kIndex };
+}
+function trexRemove(m, cid){
+  var k = curKingdom(m);
+  for (var i=0;i<k.entries.length;i++) if (k.entries[i].g===cid){ k.entries.splice(i,1); return true; }
+  return false;
+}
+function trexUndo(m){
+  var last = curKingdom(m);
+  if (!last.entries.length && m.kingdoms.length>1){ m.kingdoms.pop(); last = curKingdom(m); }
+  if (!last.entries.length) return false;
+  last.entries.pop();
+  m.status='playing'; delete m.finishedAt;
+  return true;
+}
+function playedCount(m){ var n=0; m.kingdoms.forEach(function(k){ n+=k.entries.length; }); return n; }
+
+function konTotals(m){
+  var t = m.names.map(function(){ return 0; });
+  m.rounds.forEach(function(r){ r.forEach(function(v,i){ t[i]+=v; }); });
+  return t;
+}
+function argmax(arr, skip){
+  var best=-1;
+  for (var i=0;i<arr.length;i++){ if (i===skip) continue; if (best<0 || arr[i]>arr[best]) best=i; }
+  return best;
+}
+function konCheck(m){
+  var t = konTotals(m), winners=[], losers=[];
+  t.forEach(function(s,i){
+    if (s>=m.win) winners.push(i);
+    if (m.loss>0 && s<=-m.loss) losers.push(i);
+  });
+  if (winners.length){
+    var w = winners[0];
+    winners.forEach(function(i){ if (t[i]>t[w]) w=i; });
+    return { winner:w, loser:null, reason:'win' };
+  }
+  if (losers.length){
+    var l = losers[0];
+    losers.forEach(function(i){ if (t[i]<t[l]) l=i; });
+    return { winner:argmax(t,l), loser:l, reason:'loss' };
+  }
+  return null;
+}
+function parseRound(vals, signs){
+  var any=false;
+  var out = vals.map(function(s,i){
+    if (s!=='' ){ any=true; }
+    var n = parseInt(s||'0',10); if (isNaN(n)) n=0;
+    return (signs[i]<0 && n!==0) ? -n : n;
+  });
+  return any ? out : null;
+}
+function lat(s){
+  return String(s).replace(/[٠-٩]/g, function(d){ return d.charCodeAt(0)-0x660; })
+                  .replace(/[۰-۹]/g, function(d){ return d.charCodeAt(0)-0x6F0; });
+}
+function pn(str, def){
+  var n = parseInt(lat(str).replace(/[^0-9]/g,''),10);
+  return (isNaN(n) || n<=0) ? def : n;
+}
+// </logic>
+
+/* ===================== STATE ===================== */
+var KEY = 'trex-kon-v1';
+function load(){
+  try {
+    var raw = localStorage.getItem(KEY);
+    if (raw){
+      var d = JSON.parse(raw);
+      if (d && Array.isArray(d.history)) { d.cur = d.cur || {}; return d; }
+    }
+  } catch(e){}
+  return { history:[], cur:{} };
+}
+var D = load();
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(D)); } catch(e){} }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function findM(id){ for (var i=0;i<D.history.length;i++) if (D.history[i].id===id) return D.history[i]; return null; }
+function curMatch(g){ return D.cur[g] ? findM(D.cur[g]) : null; }
+
+var installEv = null, justInstalled = false;
+function isStandalone(){
+  try { return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true || /TrexKonApp/.test(navigator.userAgent); }
+  catch(e){ return false; }
+}
+
+var S = {
+  screen:'home',
+  sheet:null,
+  setup:{
+    tmode:'two', tn:['',''], tk:4, vopen:false,
+    v:{ vk:'75', vq:'25', vd:'10', vs:'15', vt0:'200', vt1:'150', vt2:'100', vt3:'50' },
+    kn:2, knames:['','','',''], win:'100', loss:'100'
+  }
+};
+
+/* ===================== HELPERS ===================== */
+function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function num(n, plus){
+  if (n===null || n===undefined) return '';
+  var s, cls;
+  if (n<0){ s = MINUS+Math.abs(n); cls='neg'; }
+  else if (n>0){ s = (plus?'+':'')+n; cls = plus?'pos':''; }
+  else { s='0'; cls='zero'; }
+  return '<span class="num '+cls+'">'+s+'</span>';
+}
+function tNames(m){ return m.mode==='two' ? m.names : [m.names[0]||'فريقك']; }
+function fmtDate(ts){
+  try { return new Date(ts).toLocaleString('ar-u-nu-latn',{ day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }); }
+  catch(e){ return ''; }
+}
+var ICON = {
+  back:'<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>',
+  menu:'<svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14"/></svg>',
+  chev:'<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',
+  undo:'<svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></svg>',
+  plus:'<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  dl:'<svg viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>'
+};
+function hintOf(c, v){
+  if (c.id==='king') return num(-v.king)+' على من أخذه';
+  if (c.id==='queens') return num(-v.queen)+' لكل بنت';
+  if (c.id==='diamonds') return num(-v.diamond)+' لكل ورقة';
+  if (c.id==='slaps') return num(-v.slap)+' لكل لطشة';
+  return trexTotals(v.trex).map(function(x){ return num(x,true); }).join(' · ');
+}
+function topbar(title, back, right){
+  return '<header class="top">'+
+    (back?'<button class="icon-btn" data-a="'+back+'" aria-label="رجوع">'+ICON.back+'</button>':'')+
+    '<h2>'+title+'</h2>'+(right||'')+'</header>';
+}
+function creditHTML(){ return '<footer class="credit">تم تصميم التطبيق من قبل عبدالغني العيسى</footer>'; }
+
+/* ===================== VIEWS ===================== */
+function homeView(){
+  var t = curMatch('trex'), k = curMatch('kon');
+  var res = '';
+  if (t && t.status==='playing' && playedCount(t)>0){
+    res += '<button class="btn resume" data-a="resume" data-g="trex"><span>متابعة تركس</span><small>المملكة '+t.kingdoms.length+' من '+t.total+'</small></button>';
+  }
+  if (k && k.status==='playing' && k.rounds.length>0){
+    res += '<button class="btn resume" data-a="resume" data-g="kon"><span>متابعة كونكان</span><small>'+k.rounds.length+' جولة</small></button>';
+  }
+  var inst = '';
+  if (justInstalled) inst = '<p class="ok-note">تم تثبيت التطبيق، افتحه من الشاشة الرئيسية</p>';
+  else if (!isStandalone()) inst = installEv ?
+    '<button class="btn" data-a="install">'+ICON.dl+' تثبيت التطبيق</button>' :
+    '<button class="link" data-a="installHelp">كيف أثبّت التطبيق؟</button>';
+  return '<main class="home">'+
+    '<div class="hero"><img class="logo" src="icon-192.png" width="116" height="116" alt="">'+
+    '<h1>تركس وكونكان</h1><p class="sub">حاسبة النقاط</p></div>'+
+    '<div class="stack">'+
+      '<button class="btn primary big" data-a="openPick">اختر اللعبة '+ICON.chev+'</button>'+res+inst+
+      '<button class="link" data-a="history">سجل المباريات</button>'+
+    '</div>'+creditHTML()+'</main>';
+}
+
+function trexSetupView(){
+  var s = S.setup, two = s.tmode==='two';
+  var names = two ?
+    '<div class="field"><label for="tn0">اسم الفريق الأول</label><input id="tn0" value="'+esc(s.tn[0])+'" placeholder="الفريق الأول" autocomplete="off"></div>'+
+    '<div class="field"><label for="tn1">اسم الفريق الثاني</label><input id="tn1" value="'+esc(s.tn[1])+'" placeholder="الفريق الثاني" autocomplete="off"></div>' : '';
+  var kchips = [2,4,8].map(function(n){
+    return '<button class="chip-btn" data-a="tk" data-n="'+n+'" aria-pressed="'+(s.tk===n)+'">'+n+'</button>';
+  }).join('');
+  function val(id,label){ return '<div class="val"><span>'+label+'</span><input id="'+id+'" inputmode="numeric" value="'+esc(s.v[id])+'"></div>'; }
+  return topbar('تركس','home')+
+    '<div class="setup-body">'+
+    '<p class="lead">اختر نوع الشراكة</p>'+
+    '<div class="stack">'+
+      '<button class="opt" data-a="tmode" data-v="one" aria-pressed="'+(!two)+'"><b>شراكة · فريق واحد</b><span>بدون كتابة أسماء، تُحسب نقاط فريقك فقط</span></button>'+
+      '<button class="opt" data-a="tmode" data-v="two" aria-pressed="'+two+'"><b>شراكة · فريقين</b><span>اكتب اسم كل فريق وتُحسب نقاط الفريقين</span></button>'+
+    '</div>'+names+
+    '<div class="field"><span class="lbl">عدد الممالك</span><div class="chips">'+kchips+'</div></div>'+
+    '<details class="vals" id="vdet"'+(s.vopen?' open':'')+'><summary>قيم النقاط</summary><div class="grid">'+
+      val('vk','الملك')+val('vq','كل بنت')+val('vd','كل ديناري')+val('vs','كل لطشة')+
+      val('vt0','التركس · الأول')+val('vt1','التركس · الثاني')+val('vt2','التركس · الثالث')+val('vt3','التركس · الرابع')+
+    '</div></details>'+
+    '<button class="btn primary big" data-a="startTrex">ابدأ المباراة</button>'+
+    '</div>'+creditHTML();
+}
+
+function kingdomsTable(m, editable){
+  var two = m.mode==='two', names = tNames(m), cum=[0,0], rows='';
+  m.kingdoms.forEach(function(k,i){
+    if (k.entries.length!==CONTRACTS.length) return;
+    var t = sumPts(k.entries,two);
+    cum[0]+=t[0]; if (two) cum[1]+=t[1];
+    rows += '<tr'+(editable?' class="krow" data-a="openKingdom" data-k="'+i+'"':'')+'><th scope="row">المملكة '+(i+1)+'</th><td>'+num(t[0],true)+'<small>'+num(cum[0])+'</small></td>'+
+      (two?'<td>'+num(t[1],true)+'<small>'+num(cum[1])+'</small></td>':'')+'</tr>';
+  });
+  if (!rows) return '';
+  var tot = matchTotals(m);
+  var head = '<tr><th>&nbsp;</th>'+names.map(function(n){ return '<th>'+esc(n)+'</th>'; }).join('')+'</tr>';
+  var foot = '<tr><th scope="row">إجمالي المباراة</th><td>'+num(tot[0],true)+'</td>'+(two?'<td>'+num(tot[1],true)+'</td>':'')+'</tr>';
+  return '<div class="scroll"><table><thead>'+head+'</thead><tbody>'+rows+'</tbody><tfoot>'+foot+'</tfoot></table></div>'+
+    '<p class="note">الرقم الصغير تحت نقاط كل مملكة هو المجموع حتى تلك المملكة'+(editable?'. اضغط على أي مملكة لتعديل ألعابها':'')+'</p>';
+}
+
+function winnerLine(m){
+  var two = m.mode==='two', t = matchTotals(m), names = tNames(m);
+  if (!two) return 'نتيجة فريقك النهائية: '+num(t[0],true);
+  if (t[0]===t[1]) return 'تعادل الفريقان بـ '+num(t[0],true);
+  var w = t[0]>t[1]?0:1;
+  return 'فاز '+esc(names[w])+' بفارق '+num(Math.abs(t[0]-t[1]));
+}
+
+function trexView(m){
+  var two = m.mode==='two', names = tNames(m), tot = matchTotals(m);
+  var k = curKingdom(m), kt = sumPts(k.entries,two), fin = m.status==='finished';
+  var played = k.entries.length;
+  var board = '<section class="board '+(two?'two':'one')+'">'+
+    '<div class="side"><span class="nm">'+esc(names[0])+'</span><b class="big">'+num(tot[0],true)+'</b></div>'+
+    (two?'<div class="side"><span class="nm">'+esc(names[1])+'</span><b class="big">'+num(tot[1],true)+'</b></div>':'')+'</section>';
+  var meta = '<div class="meta"><span class="chip">المملكة '+m.kingdoms.length+' من '+m.total+'</span>'+
+    '<span class="kpts">هذه المملكة '+num(kt[0],true)+(two?' · '+num(kt[1],true):'')+'</span></div>';
+  var banner = fin ? '<div class="banner"><b>انتهت المباراة</b><span>'+winnerLine(m)+'</span>'+
+    '<div class="two-btns"><button class="btn" data-a="undoTrex">'+ICON.undo+'تراجع</button><button class="btn primary" data-a="newTrex">مباراة جديدة</button></div></div>' : '';
+  var pick = fin ? '' : '<button class="btn primary big" data-a="openTrexPick">اختر اللعبة '+ICON.chev+'</button>';
+  var rows = CONTRACTS.map(function(c){
+    var e = null; k.entries.forEach(function(x){ if (x.g===c.id) e = x; });
+    var right = e ? num(e.pts[0],true)+(two?'<i>|</i>'+num(e.pts[1],true):'') : '<em>لم تُلعب</em>';
+    var act = e ? 'editEntry' : 'startEntry';
+    return '<button class="row'+(e?' done':'')+'" data-a="'+act+'" data-g="'+c.id+'" data-k="'+(m.kingdoms.length-1)+'">'+
+      '<span class="glyph'+(c.red?' red':'')+'">'+c.glyph+'</span>'+
+      '<span class="rname">'+c.name+'<small>'+hintOf(c,m.vals)+'</small></span>'+
+      '<span class="rpts">'+right+'</span></button>';
+  }).join('');
+  var kt2 = kingdomsTable(m, true);
+  var menuBtn = '<button class="icon-btn" data-a="menu" aria-label="القائمة">'+ICON.menu+'</button>';
+  return topbar('تركس','home',menuBtn)+board+meta+banner+pick+
+    '<h3 class="sec">ألعاب المملكة '+(fin?m.kingdoms.length:m.kingdoms.length)+' · '+played+' من '+CONTRACTS.length+'</h3>'+
+    '<div class="rows">'+rows+'</div>'+
+    '<h3 class="sec">نتائج الممالك</h3>'+
+    (kt2 || '<p class="note">تظهر النتيجة هنا بعد انتهاء كل مملكة</p>')+
+    creditHTML();
+}
+
+function konSetupView(){
+  var s = S.setup, n = s.kn;
+  var pchips = [2,3,4].map(function(x){ return '<button class="chip-btn" data-a="kn" data-n="'+x+'" aria-pressed="'+(n===x)+'">'+x+'</button>'; }).join('');
+  var inputs = '';
+  for (var i=0;i<n;i++){
+    inputs += '<div class="field"><label for="kn'+i+'">اسم اللاعب '+(i+1)+'</label><input id="kn'+i+'" value="'+esc(s.knames[i])+'" placeholder="اللاعب '+(i+1)+'" autocomplete="off"></div>';
+  }
+  var wchips = [50,100,150,200].map(function(x){ return '<button class="chip-btn" data-a="setWin" data-n="'+x+'" aria-pressed="'+(String(s.win)===String(x))+'">'+x+'</button>'; }).join('');
+  return topbar('كونكان','home')+
+    '<div class="setup-body">'+
+    '<div class="field"><span class="lbl">عدد اللاعبين</span><div class="chips">'+pchips+'</div></div>'+inputs+
+    '<div class="field"><label for="kwin">حد الفوز</label><input id="kwin" inputmode="numeric" value="'+esc(s.win)+'"><div class="chips">'+wchips+'</div></div>'+
+    '<div class="field"><label for="kloss">حد الخسارة</label><input id="kloss" inputmode="numeric" value="'+esc(s.loss)+'"><span class="note">اكتب 0 لإلغاء حد الخسارة</span></div>'+
+    '<button class="btn primary big" data-a="startKon">ابدأ اللعبة</button>'+
+    '</div>'+creditHTML();
+}
+
+function konBar(m, score){
+  var lo = m.loss>0 ? -m.loss : 0, hi = m.win, span = hi-lo;
+  var zero = (0-lo)/span*100;
+  var c = Math.max(lo, Math.min(hi, score));
+  var pos = (c-lo)/span*100;
+  var left = Math.min(zero,pos), width = Math.abs(pos-zero);
+  return '<div class="track"><span class="fill'+(score<0?' neg':'')+'" style="left:'+left+'%;width:'+width+'%"></span>'+
+    (m.loss>0?'<span class="zero" style="left:'+zero+'%"></span>':'')+'</div>';
+}
+
+function konView(m){
+  var t = konTotals(m), fin = m.status==='finished';
+  var top = 0; t.forEach(function(v,i){ if (v>t[top]) top=i; });
+  var cards = m.names.map(function(nm,i){
+    return '<div class="kcard'+(fin&&m.result&&m.result.winner===i?' lead-card':'')+'"><span class="nm">'+esc(nm)+'</span><b class="big">'+num(t[i],true)+'</b>'+konBar(m,t[i])+'</div>';
+  }).join('');
+  var limits = '<div class="limits"><span class="chip">حد الفوز '+num(m.win)+'</span>'+
+    (m.loss>0?'<span class="chip">حد الخسارة '+num(-m.loss)+'</span>':'')+'</div>';
+  var banner = '';
+  if (fin){
+    var r = m.result || {winner:top,reason:'manual'};
+    var why = r.reason==='win' ? esc(m.names[r.winner])+' وصل إلى حد الفوز' :
+              r.reason==='loss' ? esc(m.names[r.loser])+' وصل إلى حد الخسارة' : 'تم إنهاء اللعبة يدويًا';
+    banner = '<div class="banner"><b>فاز '+esc(m.names[r.winner])+'</b><span>'+why+'</span>'+
+      '<div class="two-btns"><button class="btn" data-a="undoRound">'+ICON.undo+'تراجع</button><button class="btn primary" data-a="newKon">لعبة جديدة</button></div></div>';
+  }
+  var add = fin ? '' : '<button class="btn primary big" data-a="addRound">'+ICON.plus+' إضافة جولة</button>';
+  var head = '<tr><th>#</th>'+m.names.map(function(n){ return '<th>'+esc(n)+'</th>'; }).join('')+'</tr>';
+  var body = '';
+  for (var i=m.rounds.length-1;i>=0;i--){
+    body += '<tr><th scope="row">'+(i+1)+'</th>'+m.rounds[i].map(function(v){ return '<td>'+num(v,true)+'</td>'; }).join('')+'</tr>';
+  }
+  var foot = '<tr><th scope="row">المجموع</th>'+t.map(function(v){ return '<td>'+num(v,true)+'</td>'; }).join('')+'</tr>';
+  var table = m.rounds.length ?
+    '<div class="scroll"><table><thead>'+head+'</thead><tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot></table></div>' :
+    '<p class="note">تظهر الجولات هنا بعد إضافتها</p>';
+  var undo = (!fin && m.rounds.length) ? '<button class="btn" data-a="undoRound">'+ICON.undo+'تراجع عن آخر جولة</button>' : '';
+  var menuBtn = '<button class="icon-btn" data-a="menu" aria-label="القائمة">'+ICON.menu+'</button>';
+  return topbar('كونكان','home',menuBtn)+'<div class="kcards">'+cards+'</div>'+limits+banner+add+
+    '<h3 class="sec">الجولات</h3>'+table+(undo?'<div class="stack" style="margin-top:12px">'+undo+'</div>':'')+creditHTML();
+}
+
+function historyView(){
+  var list = D.history.filter(function(m){
+    return m.game==='trex' ? playedCount(m)>0 : m.rounds.length>0;
+  }).sort(function(a,b){ return b.startedAt-a.startedAt; });
+  var body;
+  if (!list.length){
+    body = '<p class="empty">لا توجد مباريات محفوظة بعد</p>';
+  } else {
+    body = list.map(function(m){
+      var status = m.status==='finished' ? 'منتهية' : 'غير منتهية';
+      var h2, detail;
+      if (m.game==='trex'){
+        var names = tNames(m), tot = matchTotals(m);
+        h2 = names.map(function(n,i){ return '<span>'+esc(n)+' <b>'+num(tot[i],true)+'</b></span>'; }).join('');
+        detail = kingdomsTable(m) || '<p class="note">لم تنتهِ أي مملكة بعد</p>';
+      } else {
+        var t = konTotals(m);
+        h2 = m.names.map(function(n,i){ return '<span>'+esc(n)+' <b>'+num(t[i],true)+'</b></span>'; }).join('');
+        var head = '<tr><th>#</th>'+m.names.map(function(n){ return '<th>'+esc(n)+'</th>'; }).join('')+'</tr>';
+        var rows = m.rounds.map(function(r,i){ return '<tr><th scope="row">'+(i+1)+'</th>'+r.map(function(v){ return '<td>'+num(v,true)+'</td>'; }).join('')+'</tr>'; }).join('');
+        detail = '<div class="scroll"><table><thead>'+head+'</thead><tbody>'+rows+'</tbody></table></div>';
+      }
+      var open = (m.status==='playing') ? '<button class="btn" data-a="openMatch" data-id="'+m.id+'">متابعة المباراة</button>' : '';
+      return '<details class="hcard"><summary><div class="h1"><span>'+(m.game==='trex'?'تركس':'كونكان')+' · '+status+'</span><small>'+fmtDate(m.startedAt)+'</small></div>'+
+        '<div class="h2">'+h2+'</div></summary><div class="hbody">'+detail+open+
+        '<button class="btn danger" data-a="askDel" data-id="'+m.id+'">حذف المباراة</button></div></details>';
+    }).join('');
+    body += '<button class="btn danger" data-a="askClear" style="margin-top:6px">مسح السجل كله</button>';
+  }
+  return topbar('سجل المباريات','home')+body+creditHTML();
+}
+
+/* ===================== SHEETS ===================== */
+function sheetWrap(inner){
+  return '<div class="shade" data-a="close"></div><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>'+inner+'</div>';
+}
+function pickSheet(){
+  return sheetWrap('<h3>اختر اللعبة</h3>'+
+    '<button class="pick-row" data-a="chooseGame" data-g="trex"><span class="glyph red">♥</span><span class="pn">تركس<small>ممالك، شراكة فريق أو فريقين</small></span></button>'+
+    '<button class="pick-row" data-a="chooseGame" data-g="kon"><span class="glyph">♠</span><span class="pn">كونكان<small>جولات بحد للفوز وحد للخسارة</small></span></button>');
+}
+function trexPickSheet(m){
+  var k = curKingdom(m);
+  var rows = CONTRACTS.map(function(c){
+    var done = k.entries.some(function(e){ return e.g===c.id; });
+    return '<button class="pick-row" data-a="startEntry" data-g="'+c.id+'"'+(done?' disabled':'')+'>'+
+      '<span class="glyph'+(c.red?' red':'')+'">'+c.glyph+'</span>'+
+      '<span class="pn">'+c.name+'<small>'+hintOf(c,m.vals)+'</small></span>'+(done?'<span class="st">تمت</span>':'')+'</button>';
+  }).join('');
+  return sheetWrap('<h3>اختر اللعبة</h3><p class="hint">المملكة '+m.kingdoms.length+' من '+m.total+'</p>'+rows);
+}
+function entryInp(sh){ return sh.g==='trex' ? { total:sh.total } : { count:sh.count }; }
+function entrySheet(m){
+  var sh = S.sheet, c = contractOf(sh.g), two = m.mode==='two', names = tNames(m);
+  var A = two ? names[0] : 'فريقك', B = two ? names[1] : null;
+  var body = '', hint = '';
+  if (sh.g==='king'){
+    hint = 'الملك '+num(-m.vals.king);
+    if (two){
+      body = '<p class="q">من أخذ الملك؟</p><div class="numgrid big" style="grid-template-columns:1fr 1fr">'+
+        '<button data-a="setCount" data-n="1" aria-pressed="'+(sh.count===1)+'">'+esc(A)+'</button>'+
+        '<button data-a="setCount" data-n="0" aria-pressed="'+(sh.count===0)+'">'+esc(B)+'</button></div>';
+    } else {
+      body = '<p class="q">هل أخذ فريقك الملك؟</p><div class="numgrid big" style="grid-template-columns:1fr 1fr">'+
+        '<button data-a="setCount" data-n="1" aria-pressed="'+(sh.count===1)+'">نعم</button>'+
+        '<button data-a="setCount" data-n="0" aria-pressed="'+(sh.count===0)+'">لا</button></div>';
+    }
+  } else if (sh.g==='trex'){
+    var opts = trexTotals(m.vals.trex), pool = trexPool(m.vals);
+    hint = 'مجموع الفريقين '+pool;
+    var tb = opts.map(function(n){
+      return '<button data-a="setTotal" data-n="'+n+'" aria-pressed="'+(sh.total===n)+'">'+n+'</button>';
+    }).join('');
+    body = '<p class="q">'+(two?'كم مجموع نقاط '+esc(A)+'؟':'كم مجموع نقاط فريقك؟')+'</p>'+
+      '<div class="numgrid big" style="grid-template-columns:repeat('+(opts.length>5?3:opts.length)+',1fr)">'+tb+'</div>';
+  } else {
+    var per = perOf(c,m.vals);
+    hint = (sh.g==='queens'?'كل بنت ':sh.g==='diamonds'?'كل ورقة ':'كل لطشة ')+num(-per)+' · العدد الكلي '+c.max;
+    var btns = '';
+    for (var n=0;n<=c.max;n++) btns += '<button data-a="setCount" data-n="'+n+'" aria-pressed="'+(sh.count===n)+'">'+n+'</button>';
+    var cols = c.max>4 ? 7 : c.max+1;
+    body = '<p class="q">'+(two?'كم أخذ '+esc(A)+'؟':'كم أخذ فريقك؟')+'</p><div class="numgrid" style="grid-template-columns:repeat('+cols+',1fr)">'+btns+'</div>';
+  }
+  if (sh.edit) hint = 'المملكة '+(sh.k+1)+' · '+hint;
+  var valid = entryValid(m, sh.g, entryInp(sh));
+  var prev;
+  if (valid){
+    var p = calcPts(m, sh.g, entryInp(sh));
+    prev = '<span><span class="t">'+esc(A)+'</span>'+num(p[0],true)+'</span>'+(two?'<span><span class="t">'+esc(B)+'</span>'+num(p[1],true)+'</span>':'');
+  } else {
+    prev = '<span class="t">'+(sh.g==='trex'?'اختر المجموع':'اختر العدد')+'</span>';
+  }
+  var canDel = sh.edit && sh.k===m.kingdoms.length-1;
+  return sheetWrap('<h3>'+(sh.edit?'تعديل ':'')+c.name+'</h3><p class="hint">'+hint+'</p>'+body+
+    '<div class="preview">'+prev+'</div>'+
+    '<button class="btn primary big" data-a="saveEntry"'+(valid?'':' disabled')+'>'+(sh.edit?'حفظ التعديل':'حفظ')+'</button>'+
+    (canDel?'<button class="btn danger" data-a="delEntry" data-g="'+sh.g+'">حذف وإعادة اللعب</button>':'')+
+    '<button class="btn" data-a="cancelEntry">إلغاء</button>');
+}
+function kingdomSheet(m){
+  var sh = S.sheet, k = m.kingdoms[sh.k]; if (!k) return '';
+  var two = m.mode==='two', names = tNames(m), t = sumPts(k.entries,two);
+  var rows = CONTRACTS.map(function(c){
+    var e = null; k.entries.forEach(function(x){ if (x.g===c.id) e = x; });
+    if (!e) return '';
+    return '<button class="pick-row" data-a="editEntry" data-g="'+c.id+'" data-k="'+sh.k+'" data-from="kingdom">'+
+      '<span class="glyph'+(c.red?' red':'')+'">'+c.glyph+'</span>'+
+      '<span class="pn">'+c.name+'<small>'+esc(names[0])+' '+num(e.pts[0],true)+(two?' · '+esc(names[1])+' '+num(e.pts[1],true):'')+'</small></span></button>';
+  }).join('');
+  return sheetWrap('<h3>المملكة '+(sh.k+1)+'</h3>'+
+    '<p class="hint">اضغط على أي لعبة لتعديلها · مجموع المملكة '+esc(names[0])+' '+num(t[0],true)+(two?' · '+esc(names[1])+' '+num(t[1],true):'')+'</p>'+
+    rows+'<button class="btn" data-a="close">إغلاق</button>');
+}
+function kEndSheet(m){
+  var sh = S.sheet, two = m.mode==='two', names = tNames(m);
+  var k = m.kingdoms[sh.k], t = sumPts(k.entries,two), tot = matchTotals(m);
+  var rows = '<tr><th scope="row">نتيجة المملكة</th><td>'+num(t[0],true)+'</td>'+(two?'<td>'+num(t[1],true)+'</td>':'')+'</tr>'+
+    '<tr><th scope="row">إجمالي المباراة</th><td>'+num(tot[0],true)+'</td>'+(two?'<td>'+num(tot[1],true)+'</td>':'')+'</tr>';
+  var head = '<tr><th>&nbsp;</th>'+names.map(function(n){ return '<th>'+esc(n)+'</th>'; }).join('')+'</tr>';
+  var fin = m.status==='finished';
+  return sheetWrap('<h3>'+(fin?'انتهت المباراة':'انتهت المملكة '+(sh.k+1))+'</h3>'+
+    (fin?'<p class="q">'+winnerLine(m)+'</p>':'')+
+    '<div class="scroll"><table><thead>'+head+'</thead><tbody>'+rows+'</tbody></table></div>'+
+    '<p class="hint">تم حفظ النتيجة في السجل</p>'+
+    (fin?'<button class="btn primary big" data-a="newTrex">مباراة جديدة</button><button class="btn" data-a="close">عرض النتيجة</button>'
+        :'<button class="btn primary big" data-a="close">المملكة '+(sh.k+2)+'</button>'));
+}
+function menuSheet(g){
+  return sheetWrap('<h3>القائمة</h3>'+
+    '<button class="btn" data-a="history">سجل المباريات</button>'+
+    '<button class="btn" data-a="'+(g==='trex'?'newTrex':'newKon')+'">'+(g==='trex'?'مباراة جديدة':'لعبة جديدة')+'</button>'+
+    '<button class="btn danger" data-a="askFinish">إنهاء الآن وحفظ النتيجة</button>'+
+    '<button class="btn" data-a="close">إغلاق</button>');
+}
+function confirmSheet(){
+  var sh = S.sheet;
+  return sheetWrap('<h3>'+esc(sh.title)+'</h3><p class="hint">'+esc(sh.text)+'</p>'+
+    '<button class="btn danger" data-a="'+sh.yes+'" data-id="'+(sh.id||'')+'">'+esc(sh.yesLabel)+'</button>'+
+    '<button class="btn" data-a="close">إلغاء</button>');
+}
+function roundSheet(m){
+  var sh = S.sheet, rows = m.names.map(function(n,i){
+    var neg = sh.signs[i]<0;
+    return '<div class="kr"><span class="who">'+esc(n)+'</span>'+
+      '<button class="sg '+(neg?'minus':'plus')+'" data-a="sign" data-i="'+i+'" aria-label="'+(neg?'سالب':'موجب')+'">'+(neg?MINUS:'+')+'</button>'+
+      '<input id="kr'+i+'" inputmode="numeric" maxlength="4" placeholder="0" value="'+esc(sh.vals[i])+'" autocomplete="off"></div>';
+  }).join('');
+  var ok = parseRound(sh.vals, sh.signs)!==null;
+  return sheetWrap('<h3>جولة '+(m.rounds.length+1)+'</h3><p class="hint">اكتب نقاط كل لاعب في هذه الجولة. اضغط الإشارة لتغييرها إلى سالب</p>'+rows+
+    '<button class="btn primary big" id="saveRound" data-a="saveRound"'+(ok?'':' disabled')+'>حفظ الجولة</button>'+
+    '<button class="btn" data-a="close">إلغاء</button>');
+}
+function konEndSheet(m){
+  var r = m.result, t = konTotals(m);
+  var why = r.reason==='win' ? esc(m.names[r.winner])+' وصل إلى حد الفوز '+num(m.win) :
+            r.reason==='loss' ? esc(m.names[r.loser])+' وصل إلى حد الخسارة '+num(-m.loss) : 'تم إنهاء اللعبة يدويًا';
+  var order = t.map(function(v,i){ return i; }).sort(function(a,b){ return t[b]-t[a]; });
+  var rows = order.map(function(i){ return '<tr><th scope="row">'+esc(m.names[i])+'</th><td>'+num(t[i],true)+'</td></tr>'; }).join('');
+  return sheetWrap('<h3>فاز '+esc(m.names[r.winner])+'</h3><p class="q">'+why+'</p>'+
+    '<div class="scroll"><table><tbody>'+rows+'</tbody></table></div>'+
+    '<p class="hint">تم حفظ النتيجة في السجل</p>'+
+    '<button class="btn primary big" data-a="newKon">لعبة جديدة</button><button class="btn" data-a="close">عرض النتيجة</button>');
+}
+function installHelpSheet(){
+  return sheetWrap('<h3>تثبيت التطبيق</h3>'+
+    '<ul class="steps">'+
+    '<li><b>كروم (أندرويد):</b> اضغط زر القائمة ⋮ ثم «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».</li>'+
+    '<li><b>سفاري (آيفون):</b> اضغط زر المشاركة ثم «إضافة إلى الشاشة الرئيسية».</li>'+
+    '</ul>'+
+    '<p class="hint">افتح التطبيق مرة واحدة والإنترنت شغال، وبعدها يعمل بدون نت.</p>'+
+    '<button class="btn primary" data-a="close">تمام</button>');
+}
+function sheetView(){
+  var sh = S.sheet; if (!sh) return '';
+  var tm = curMatch('trex'), km = curMatch('kon');
+  switch (sh.t){
+    case 'pick': return pickSheet();
+    case 'installHelp': return installHelpSheet();
+    case 'trexPick': return tm ? trexPickSheet(tm) : '';
+    case 'entry': return tm ? entrySheet(tm) : '';
+    case 'kingdom': return tm ? kingdomSheet(tm) : '';
+    case 'kEnd': return tm ? kEndSheet(tm) : '';
+    case 'menu': return menuSheet(sh.g);
+    case 'confirm': return confirmSheet();
+    case 'round': return km ? roundSheet(km) : '';
+    case 'konEnd': return km && km.result ? konEndSheet(km) : '';
+  }
+  return '';
+}
+
+/* ===================== RENDER ===================== */
+var $app = document.getElementById('app'), $sheet = document.getElementById('sheet-root');
+function render(){
+  var v = '';
+  var tm = curMatch('trex'), km = curMatch('kon');
+  if (S.screen==='trex' && !tm) S.screen='home';
+  if (S.screen==='kon' && !km) S.screen='home';
+  switch (S.screen){
+    case 'home': v = homeView(); break;
+    case 'trexSetup': v = trexSetupView(); break;
+    case 'trex': v = trexView(tm); break;
+    case 'konSetup': v = konSetupView(); break;
+    case 'kon': v = konView(km); break;
+    case 'history': v = historyView(); break;
+  }
+  $app.innerHTML = v;
+  $sheet.innerHTML = sheetView();
+  if (S.sheet && S.sheet.t==='round' && S.sheet.focus){
+    S.sheet.focus = false;
+    setTimeout(function(){ var f = document.getElementById('kr0'); if (f) { try { f.focus(); } catch(e){} } }, 60);
+  }
+}
+function go(screen){ S.screen = screen; S.sheet = null; window.scrollTo(0,0); render(); }
+
+/* ===================== ACTIONS ===================== */
+function newTrexMatch(){
+  var s = S.setup, two = s.tmode==='two', v = s.v;
+  var vals = {
+    king:pn(v.vk,75), queen:pn(v.vq,25), diamond:pn(v.vd,10), slap:pn(v.vs,15),
+    trex:[pn(v.vt0,200),pn(v.vt1,150),pn(v.vt2,100),pn(v.vt3,50)]
+  };
+  var m = {
+    id:uid(), game:'trex', mode:s.tmode,
+    names: two ? [(s.tn[0]||'').trim()||'الفريق الأول', (s.tn[1]||'').trim()||'الفريق الثاني'] : ['فريقك'],
+    total:s.tk, vals:vals, status:'playing', startedAt:Date.now(), kingdoms:[{entries:[]}]
+  };
+  D.history.push(m); D.cur.trex = m.id; save();
+  go('trex');
+}
+function newKonMatch(){
+  var s = S.setup, n = s.kn, names = [];
+  for (var i=0;i<n;i++) names.push((s.knames[i]||'').trim() || ('اللاعب '+(i+1)));
+  var loss = parseInt(lat(s.loss).replace(/[^0-9]/g,''),10); if (isNaN(loss) || loss<0) loss = 0;
+  var m = { id:uid(), game:'kon', names:names, win:pn(s.win,100), loss:loss, rounds:[], status:'playing', startedAt:Date.now() };
+  D.history.push(m); D.cur.kon = m.id; save();
+  go('kon');
+}
+function finishNow(g){
+  var m = curMatch(g); if (!m) return;
+  m.status='finished'; m.finishedAt=Date.now();
+  if (g==='kon'){ var t = konTotals(m); m.result = { winner:argmax(t,-1), loser:null, reason:'manual' }; }
+  save(); S.sheet = null; render();
+}
+
+function act(a, ds){
+  var tm = curMatch('trex'), km = curMatch('kon'), sh = S.sheet;
+  switch (a){
+    case 'close': S.sheet = null; render(); break;
+    case 'openPick': S.sheet = { t:'pick' }; render(); break;
+    case 'installHelp': S.sheet = { t:'installHelp' }; render(); break;
+    case 'install':
+      var ev = installEv;
+      if (!ev){ S.sheet = { t:'installHelp' }; render(); break; }
+      installEv = null;
+      try {
+        ev.prompt();
+        if (ev.userChoice && ev.userChoice.then) ev.userChoice.then(function(c){ if (c && c.outcome==='accepted') justInstalled = true; render(); });
+      } catch(x){}
+      render(); break;
+    case 'chooseGame': go(ds.g==='trex' ? 'trexSetup' : 'konSetup'); break;
+    case 'home': go('home'); break;
+    case 'history': go('history'); break;
+    case 'resume': go(ds.g); break;
+    case 'openMatch': D.cur[findM(ds.id).game] = ds.id; save(); go(findM(ds.id).game); break;
+
+    case 'tmode': S.setup.tmode = ds.v; render(); break;
+    case 'tk': S.setup.tk = +ds.n; render(); break;
+    case 'startTrex': newTrexMatch(); break;
+    case 'newTrex': go('trexSetup'); break;
+
+    case 'openTrexPick': S.sheet = { t:'trexPick' }; render(); break;
+    case 'startEntry':
+      if (!tm) break;
+      S.sheet = { t:'entry', g:ds.g, k:tm.kingdoms.length-1, count:null, total:null, edit:false }; render(); break;
+    case 'setCount': sh.count = +ds.n; render(); break;
+    case 'setTotal': sh.total = +ds.n; render(); break;
+    case 'saveEntry':
+      if (!tm || !sh || !entryValid(tm, sh.g, entryInp(sh))) break;
+      if (sh.edit){
+        setEntry(tm, sh.k, sh.g, entryInp(sh)); save();
+        S.sheet = sh.from==='kingdom' ? { t:'kingdom', k:sh.k } : null;
+        render(); break;
+      }
+      var r = trexAdd(tm, sh.g, entryInp(sh));
+      save();
+      S.sheet = (r && r.kingdomDone) ? { t:'kEnd', k:r.kIndex } : null;
+      render(); break;
+    case 'editEntry':
+      if (!tm) break;
+      var ek = +ds.k, ent = null;
+      ((tm.kingdoms[ek]||{entries:[]}).entries).forEach(function(x){ if (x.g===ds.g) ent = x; });
+      if (!ent) break;
+      S.sheet = { t:'entry', g:ds.g, k:ek, edit:true, from:ds.from||null,
+                  count: ds.g==='trex' ? null : ent.inp.count, total: ds.g==='trex' ? trexTotalOf(tm, ent.inp) : null };
+      render(); break;
+    case 'openKingdom': S.sheet = { t:'kingdom', k:+ds.k }; render(); break;
+    case 'cancelEntry': S.sheet = (sh && sh.from==='kingdom') ? { t:'kingdom', k:sh.k } : null; render(); break;
+    case 'delEntry': if (tm){ trexRemove(tm, ds.g); tm.status='playing'; save(); } S.sheet = null; render(); break;
+    case 'undoTrex': if (tm){ trexUndo(tm); save(); } S.sheet = null; render(); break;
+    case 'menu': S.sheet = { t:'menu', g:S.screen }; render(); break;
+    case 'askFinish':
+      S.sheet = { t:'confirm', title:'إنهاء الآن؟', text:'تُحفظ النتيجة الحالية في السجل وتنتهي المباراة.', yes:'finishYes', yesLabel:'نعم، أنهِ المباراة', id:S.screen };
+      render(); break;
+    case 'finishYes': finishNow(ds.id); break;
+
+    case 'kn': S.setup.kn = +ds.n; render(); break;
+    case 'setWin': S.setup.win = String(ds.n); render(); break;
+    case 'startKon': newKonMatch(); break;
+    case 'newKon': go('konSetup'); break;
+    case 'addRound': if (km){ S.sheet = { t:'round', vals:km.names.map(function(){ return ''; }), signs:km.names.map(function(){ return 1; }), focus:true }; render(); } break;
+    case 'sign': sh.signs[+ds.i] = -sh.signs[+ds.i]; render(); break;
+    case 'saveRound':
+      if (!km || !sh) break;
+      var row = parseRound(sh.vals, sh.signs); if (!row) break;
+      km.rounds.push(row);
+      var res = konCheck(km);
+      if (res){ km.status='finished'; km.result=res; km.finishedAt=Date.now(); S.sheet = { t:'konEnd' }; } else { S.sheet = null; }
+      save(); render(); break;
+    case 'undoRound':
+      if (km && km.rounds.length){ km.rounds.pop(); km.status='playing'; delete km.result; delete km.finishedAt; save(); }
+      S.sheet = null; render(); break;
+
+    case 'askDel':
+      S.sheet = { t:'confirm', title:'حذف المباراة؟', text:'تُحذف من السجل نهائيًا.', yes:'delYes', yesLabel:'حذف', id:ds.id }; render(); break;
+    case 'delYes':
+      D.history = D.history.filter(function(m){ return m.id!==ds.id; });
+      Object.keys(D.cur).forEach(function(g){ if (D.cur[g]===ds.id) delete D.cur[g]; });
+      save(); S.sheet = null; render(); break;
+    case 'askClear':
+      S.sheet = { t:'confirm', title:'مسح السجل كله؟', text:'تُحذف كل المباريات المحفوظة ولا يمكن استرجاعها.', yes:'clearYes', yesLabel:'مسح الكل' }; render(); break;
+    case 'clearYes': D.history = []; D.cur = {}; save(); S.sheet = null; render(); break;
+  }
+}
+
+document.addEventListener('click', function(e){
+  var t = e.target.closest ? e.target.closest('[data-a]') : null;
+  if (!t || t.disabled) return;
+  act(t.getAttribute('data-a'), t.dataset);
+});
+document.addEventListener('input', function(e){
+  var el = e.target, id = el.id || '';
+  if (/^tn[01]$/.test(id)) S.setup.tn[+id.charAt(2)] = el.value;
+  else if (/^kn[0-3]$/.test(id)) S.setup.knames[+id.charAt(2)] = el.value;
+  else if (id==='kwin') S.setup.win = el.value;
+  else if (id==='kloss') S.setup.loss = el.value;
+  else if (/^v[kqds]$|^vt[0-3]$/.test(id)) S.setup.v[id] = el.value;
+  else if (/^kr[0-3]$/.test(id) && S.sheet && S.sheet.t==='round'){
+    var clean = lat(el.value).replace(/[^0-9]/g,'');
+    if (clean!==el.value) el.value = clean;
+    S.sheet.vals[+id.charAt(2)] = clean;
+    var b = document.getElementById('saveRound');
+    if (b) b.disabled = parseRound(S.sheet.vals, S.sheet.signs)===null;
+  }
+});
+document.addEventListener('toggle', function(e){
+  if (e.target && e.target.id==='vdet') S.setup.vopen = e.target.open;
+}, true);
+document.addEventListener('keydown', function(e){
+  if (e.key==='Escape' && S.sheet){ S.sheet = null; render(); }
+});
+
+// used by the Android app: back closes a sheet, then returns home, then leaves the app
+window.appBack = function(){
+  if (S.sheet){ S.sheet = null; render(); return true; }
+  if (S.screen!=='home'){ go('home'); return true; }
+  return false;
+};
+
+window.addEventListener('beforeinstallprompt', function(e){
+  e.preventDefault(); installEv = e;
+  if (S.screen==='home' && !S.sheet) render();
+});
+window.addEventListener('appinstalled', function(){
+  installEv = null; justInstalled = true;
+  if (S.screen==='home') render();
+});
+
+try { if (navigator.serviceWorker) navigator.serviceWorker.register('sw.js').catch(function(){}); } catch(e){}
+
+render();
+})();
+</script>
+
+</body>
+</html>
