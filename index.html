@@ -165,6 +165,7 @@ tr:last-child>*{border-bottom:0}
 .track .fill.neg{background:var(--neg)}
 .track .zero{position:absolute;top:0;bottom:0;width:2px;background:var(--muted)}
 .limits{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.opt-tag{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:0 8px;margin-inline-start:6px;font-weight:500}
 
 /* history */
 .hcard{border:1px solid var(--line);border-radius:16px;background:var(--surface);margin-bottom:10px;overflow:hidden}
@@ -330,10 +331,16 @@ function argmax(arr, skip){
   for (var i=0;i<arr.length;i++){ if (i===skip) continue; if (best<0 || arr[i]>arr[best]) best=i; }
   return best;
 }
+function konRecalc(m){
+  var res = konCheck(m);
+  if (res){ if (m.status!=='finished') m.finishedAt = Date.now(); m.status='finished'; m.result=res; return; }
+  if (m.status==='finished' && m.result && m.result.reason==='manual'){ m.result.winner = argmax(konTotals(m),-1); return; }
+  m.status='playing'; delete m.result; delete m.finishedAt;
+}
 function konCheck(m){
   var t = konTotals(m), winners=[], losers=[];
   t.forEach(function(s,i){
-    if (s>=m.win) winners.push(i);
+    if (m.win>0 && s>=m.win) winners.push(i);
     if (m.loss>0 && s<=-m.loss) losers.push(i);
   });
   if (winners.length){
@@ -360,6 +367,10 @@ function parseRound(vals, signs){
 function lat(s){
   return String(s).replace(/[٠-٩]/g, function(d){ return d.charCodeAt(0)-0x660; })
                   .replace(/[۰-۹]/g, function(d){ return d.charCodeAt(0)-0x6F0; });
+}
+function lim(str){
+  var n = parseInt(lat(str).replace(/[^0-9]/g,''),10);
+  return (isNaN(n) || n<0) ? 0 : n;
 }
 function pn(str, def){
   var n = parseInt(lat(str).replace(/[^0-9]/g,''),10);
@@ -395,9 +406,9 @@ var S = {
   screen:'home',
   sheet:null,
   setup:{
-    tmode:'two', tn:['',''], tk:4, vopen:false,
+    tmode:'two', tn:['نحن','هم'], tk:4, vopen:false,
     v:{ vk:'75', vq:'25', vd:'10', vs:'15', vt0:'200', vt1:'150', vt2:'100', vt3:'50' },
-    kn:2, knames:['','','',''], win:'100', loss:'100'
+    kn:2, knames:['نحن','هم','',''], win:'', loss:''
   }
 };
 
@@ -442,10 +453,10 @@ function creditHTML(){ return '<footer class="credit">تم تصميم التطب
 function homeView(){
   var t = curMatch('trex'), k = curMatch('kon');
   var res = '';
-  if (t && t.status==='playing' && playedCount(t)>0){
+  if (t && t.status==='playing'){
     res += '<button class="btn resume" data-a="resume" data-g="trex"><span>متابعة تركس</span><small>المملكة '+t.kingdoms.length+' من '+t.total+'</small></button>';
   }
-  if (k && k.status==='playing' && k.rounds.length>0){
+  if (k && k.status==='playing'){
     res += '<button class="btn resume" data-a="resume" data-g="kon"><span>متابعة كونكان</span><small>'+k.rounds.length+' جولة</small></button>';
   }
   var inst = '';
@@ -465,8 +476,8 @@ function homeView(){
 function trexSetupView(){
   var s = S.setup, two = s.tmode==='two';
   var names = two ?
-    '<div class="field"><label for="tn0">اسم الفريق الأول</label><input id="tn0" value="'+esc(s.tn[0])+'" placeholder="الفريق الأول" autocomplete="off"></div>'+
-    '<div class="field"><label for="tn1">اسم الفريق الثاني</label><input id="tn1" value="'+esc(s.tn[1])+'" placeholder="الفريق الثاني" autocomplete="off"></div>' : '';
+    '<div class="field"><label for="tn0">اسم الفريق الأول</label><input id="tn0" value="'+esc(s.tn[0])+'" placeholder="نحن" autocomplete="off"></div>'+
+    '<div class="field"><label for="tn1">اسم الفريق الثاني</label><input id="tn1" value="'+esc(s.tn[1])+'" placeholder="هم" autocomplete="off"></div>' : '';
   var kchips = [2,4,8].map(function(n){
     return '<button class="chip-btn" data-a="tk" data-n="'+n+'" aria-pressed="'+(s.tk===n)+'">'+n+'</button>';
   }).join('');
@@ -543,31 +554,40 @@ function trexView(m){
     creditHTML();
 }
 
+function limitField(id, label, act, val){
+  var chips = [0,50,100,150,200].map(function(x){
+    return '<button class="chip-btn" data-a="'+act+'" data-n="'+x+'" aria-pressed="'+(lim(val)===x)+'">'+(x===0?'بدون':x)+'</button>';
+  }).join('');
+  return '<div class="field"><label for="'+id+'">'+label+' <span class="opt-tag">اختياري</span></label>'+
+    '<input id="'+id+'" inputmode="numeric" placeholder="بدون حد" value="'+esc(val)+'" autocomplete="off">'+
+    '<div class="chips">'+chips+'</div></div>';
+}
 function konSetupView(){
   var s = S.setup, n = s.kn;
   var pchips = [2,3,4].map(function(x){ return '<button class="chip-btn" data-a="kn" data-n="'+x+'" aria-pressed="'+(n===x)+'">'+x+'</button>'; }).join('');
   var inputs = '';
   for (var i=0;i<n;i++){
-    inputs += '<div class="field"><label for="kn'+i+'">اسم اللاعب '+(i+1)+'</label><input id="kn'+i+'" value="'+esc(s.knames[i])+'" placeholder="اللاعب '+(i+1)+'" autocomplete="off"></div>';
+    inputs += '<div class="field"><label for="kn'+i+'">اسم اللاعب '+(i+1)+'</label><input id="kn'+i+'" value="'+esc(s.knames[i])+'" placeholder="'+(i===0 ? 'نحن' : i===1 ? 'هم' : 'اللاعب '+(i+1))+'" autocomplete="off"></div>';
   }
-  var wchips = [50,100,150,200].map(function(x){ return '<button class="chip-btn" data-a="setWin" data-n="'+x+'" aria-pressed="'+(String(s.win)===String(x))+'">'+x+'</button>'; }).join('');
   return topbar('كونكان','home')+
     '<div class="setup-body">'+
     '<div class="field"><span class="lbl">عدد اللاعبين</span><div class="chips">'+pchips+'</div></div>'+inputs+
-    '<div class="field"><label for="kwin">حد الفوز</label><input id="kwin" inputmode="numeric" value="'+esc(s.win)+'"><div class="chips">'+wchips+'</div></div>'+
-    '<div class="field"><label for="kloss">حد الخسارة</label><input id="kloss" inputmode="numeric" value="'+esc(s.loss)+'"><span class="note">اكتب 0 لإلغاء حد الخسارة</span></div>'+
+    limitField('kwin','حد الفوز','setWin',s.win)+
+    limitField('kloss','حد الخسارة','setLoss',s.loss)+
+    '<p class="note">اختر «بدون» أو اترك الخانة فارغة لإلغاء الحد. إذا ألغيت الحدين تنتهي اللعبة عندما تضغط «إنهاء اللعبة».</p>'+
     '<button class="btn primary big" data-a="startKon">ابدأ اللعبة</button>'+
     '</div>'+creditHTML();
 }
 
 function konBar(m, score){
-  var lo = m.loss>0 ? -m.loss : 0, hi = m.win, span = hi-lo;
-  var zero = (0-lo)/span*100;
+  var hi = m.win>0 ? m.win : 0, lo = m.loss>0 ? -m.loss : 0;
+  if (hi===lo) return '';
+  var span = hi-lo, zero = (0-lo)/span*100;
   var c = Math.max(lo, Math.min(hi, score));
   var pos = (c-lo)/span*100;
   var left = Math.min(zero,pos), width = Math.abs(pos-zero);
   return '<div class="track"><span class="fill'+(score<0?' neg':'')+'" style="left:'+left+'%;width:'+width+'%"></span>'+
-    (m.loss>0?'<span class="zero" style="left:'+zero+'%"></span>':'')+'</div>';
+    ((m.win>0 && m.loss>0)?'<span class="zero" style="left:'+zero+'%"></span>':'')+'</div>';
 }
 
 function konView(m){
@@ -576,8 +596,11 @@ function konView(m){
   var cards = m.names.map(function(nm,i){
     return '<div class="kcard'+(fin&&m.result&&m.result.winner===i?' lead-card':'')+'"><span class="nm">'+esc(nm)+'</span><b class="big">'+num(t[i],true)+'</b>'+konBar(m,t[i])+'</div>';
   }).join('');
-  var limits = '<div class="limits"><span class="chip">حد الفوز '+num(m.win)+'</span>'+
-    (m.loss>0?'<span class="chip">حد الخسارة '+num(-m.loss)+'</span>':'')+'</div>';
+  var noLim = !(m.win>0) && !(m.loss>0);
+  var limits = '<div class="limits">'+
+    (m.win>0?'<span class="chip">حد الفوز '+num(m.win)+'</span>':'')+
+    (m.loss>0?'<span class="chip">حد الخسارة '+num(-m.loss)+'</span>':'')+
+    (noLim?'<span class="chip">بدون حدود · الإنهاء يدويًا</span>':'')+'</div>';
   var banner = '';
   if (fin){
     var r = m.result || {winner:top,reason:'manual'};
@@ -590,22 +613,21 @@ function konView(m){
   var head = '<tr><th>#</th>'+m.names.map(function(n){ return '<th>'+esc(n)+'</th>'; }).join('')+'</tr>';
   var body = '';
   for (var i=m.rounds.length-1;i>=0;i--){
-    body += '<tr><th scope="row">'+(i+1)+'</th>'+m.rounds[i].map(function(v){ return '<td>'+num(v,true)+'</td>'; }).join('')+'</tr>';
+    body += '<tr class="krow" data-a="editRound" data-i="'+i+'"><th scope="row">'+(i+1)+'</th>'+m.rounds[i].map(function(v){ return '<td>'+num(v,true)+'</td>'; }).join('')+'</tr>';
   }
   var foot = '<tr><th scope="row">المجموع</th>'+t.map(function(v){ return '<td>'+num(v,true)+'</td>'; }).join('')+'</tr>';
   var table = m.rounds.length ?
     '<div class="scroll"><table><thead>'+head+'</thead><tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot></table></div>' :
     '<p class="note">تظهر الجولات هنا بعد إضافتها</p>';
   var undo = (!fin && m.rounds.length) ? '<button class="btn" data-a="undoRound">'+ICON.undo+'تراجع عن آخر جولة</button>' : '';
+  var fb = (!fin && noLim && m.rounds.length) ? '<button class="btn danger" data-a="askFinish">إنهاء اللعبة وحفظ النتيجة</button>' : '';
   var menuBtn = '<button class="icon-btn" data-a="menu" aria-label="القائمة">'+ICON.menu+'</button>';
   return topbar('كونكان','home',menuBtn)+'<div class="kcards">'+cards+'</div>'+limits+banner+add+
-    '<h3 class="sec">الجولات</h3>'+table+(undo?'<div class="stack" style="margin-top:12px">'+undo+'</div>':'')+creditHTML();
+    '<h3 class="sec">الجولات</h3>'+table+(m.rounds.length?'<p class="note">اضغط على أي جولة لتعديلها</p>':'')+((undo||fb)?'<div class="stack" style="margin-top:12px">'+undo+fb+'</div>':'')+creditHTML();
 }
 
 function historyView(){
-  var list = D.history.filter(function(m){
-    return m.game==='trex' ? playedCount(m)>0 : m.rounds.length>0;
-  }).sort(function(a,b){ return b.startedAt-a.startedAt; });
+  var list = D.history.slice().sort(function(a,b){ return b.startedAt-a.startedAt; });
   var body;
   if (!list.length){
     body = '<p class="empty">لا توجد مباريات محفوظة بعد</p>';
@@ -622,9 +644,9 @@ function historyView(){
         h2 = m.names.map(function(n,i){ return '<span>'+esc(n)+' <b>'+num(t[i],true)+'</b></span>'; }).join('');
         var head = '<tr><th>#</th>'+m.names.map(function(n){ return '<th>'+esc(n)+'</th>'; }).join('')+'</tr>';
         var rows = m.rounds.map(function(r,i){ return '<tr><th scope="row">'+(i+1)+'</th>'+r.map(function(v){ return '<td>'+num(v,true)+'</td>'; }).join('')+'</tr>'; }).join('');
-        detail = '<div class="scroll"><table><thead>'+head+'</thead><tbody>'+rows+'</tbody></table></div>';
+        detail = m.rounds.length ? '<div class="scroll"><table><thead>'+head+'</thead><tbody>'+rows+'</tbody></table></div>' : '<p class="note">لا توجد جولات بعد</p>';
       }
-      var open = (m.status==='playing') ? '<button class="btn" data-a="openMatch" data-id="'+m.id+'">متابعة المباراة</button>' : '';
+      var open = '<button class="btn" data-a="openMatch" data-id="'+m.id+'">'+(m.status==='playing'?'متابعة المباراة':'فتح المباراة وتعديل النتيجة')+'</button>';
       return '<details class="hcard"><summary><div class="h1"><span>'+(m.game==='trex'?'تركس':'كونكان')+' · '+status+'</span><small>'+fmtDate(m.startedAt)+'</small></div>'+
         '<div class="h2">'+h2+'</div></summary><div class="hbody">'+detail+open+
         '<button class="btn danger" data-a="askDel" data-id="'+m.id+'">حذف المباراة</button></div></details>';
@@ -750,8 +772,8 @@ function roundSheet(m){
       '<input id="kr'+i+'" inputmode="numeric" maxlength="4" placeholder="0" value="'+esc(sh.vals[i])+'" autocomplete="off"></div>';
   }).join('');
   var ok = parseRound(sh.vals, sh.signs)!==null;
-  return sheetWrap('<h3>جولة '+(m.rounds.length+1)+'</h3><p class="hint">اكتب نقاط كل لاعب في هذه الجولة. اضغط الإشارة لتغييرها إلى سالب</p>'+rows+
-    '<button class="btn primary big" id="saveRound" data-a="saveRound"'+(ok?'':' disabled')+'>حفظ الجولة</button>'+
+  return sheetWrap('<h3>'+(sh.edit?'تعديل الجولة '+(sh.idx+1):'جولة '+(m.rounds.length+1))+'</h3><p class="hint">اكتب نقاط كل لاعب في هذه الجولة. اضغط الإشارة لتغييرها إلى سالب</p>'+rows+
+    '<button class="btn primary big" id="saveRound" data-a="saveRound"'+(ok?'':' disabled')+'>'+(sh.edit?'حفظ التعديل':'حفظ الجولة')+'</button>'+(sh.edit?'<button class="btn danger" data-a="delRound" data-i="'+sh.idx+'">حذف الجولة</button>':'')+
     '<button class="btn" data-a="close">إلغاء</button>');
 }
 function konEndSheet(m){
@@ -817,7 +839,14 @@ function render(){
 function go(screen){ S.screen = screen; S.sheet = null; window.scrollTo(0,0); render(); }
 
 /* ===================== ACTIONS ===================== */
+function dropEmpty(g){
+  var old = curMatch(g);
+  if (old && old.status==='playing' && (g==='trex' ? playedCount(old)===0 : old.rounds.length===0)){
+    D.history = D.history.filter(function(m){ return m.id!==old.id; });
+  }
+}
 function newTrexMatch(){
+  dropEmpty('trex');
   var s = S.setup, two = s.tmode==='two', v = s.v;
   var vals = {
     king:pn(v.vk,75), queen:pn(v.vq,25), diamond:pn(v.vd,10), slap:pn(v.vs,15),
@@ -825,17 +854,18 @@ function newTrexMatch(){
   };
   var m = {
     id:uid(), game:'trex', mode:s.tmode,
-    names: two ? [(s.tn[0]||'').trim()||'الفريق الأول', (s.tn[1]||'').trim()||'الفريق الثاني'] : ['فريقك'],
+    names: two ? [(s.tn[0]||'').trim()||'نحن', (s.tn[1]||'').trim()||'هم'] : ['فريقك'],
     total:s.tk, vals:vals, status:'playing', startedAt:Date.now(), kingdoms:[{entries:[]}]
   };
   D.history.push(m); D.cur.trex = m.id; save();
   go('trex');
 }
 function newKonMatch(){
+  dropEmpty('kon');
   var s = S.setup, n = s.kn, names = [];
-  for (var i=0;i<n;i++) names.push((s.knames[i]||'').trim() || ('اللاعب '+(i+1)));
-  var loss = parseInt(lat(s.loss).replace(/[^0-9]/g,''),10); if (isNaN(loss) || loss<0) loss = 0;
-  var m = { id:uid(), game:'kon', names:names, win:pn(s.win,100), loss:loss, rounds:[], status:'playing', startedAt:Date.now() };
+  for (var i=0;i<n;i++) names.push((s.knames[i]||'').trim() || (i===0 ? 'نحن' : i===1 ? 'هم' : 'اللاعب '+(i+1)));
+  var loss = lim(s.loss), win = lim(s.win);
+  var m = { id:uid(), game:'kon', names:names, win:win, loss:loss, rounds:[], status:'playing', startedAt:Date.now() };
   D.history.push(m); D.cur.kon = m.id; save();
   go('kon');
 }
@@ -861,7 +891,9 @@ function act(a, ds){
         if (ev.userChoice && ev.userChoice.then) ev.userChoice.then(function(c){ if (c && c.outcome==='accepted') justInstalled = true; render(); });
       } catch(x){}
       render(); break;
-    case 'chooseGame': go(ds.g==='trex' ? 'trexSetup' : 'konSetup'); break;
+    case 'chooseGame':
+      if (ds.g==='kon'){ S.setup.win = ''; S.setup.loss = ''; }
+      go(ds.g==='trex' ? 'trexSetup' : 'konSetup'); break;
     case 'home': go('home'); break;
     case 'history': go('history'); break;
     case 'resume': go(ds.g); break;
@@ -908,18 +940,35 @@ function act(a, ds){
     case 'finishYes': finishNow(ds.id); break;
 
     case 'kn': S.setup.kn = +ds.n; render(); break;
-    case 'setWin': S.setup.win = String(ds.n); render(); break;
+    case 'setWin': S.setup.win = ds.n==='0' ? '' : String(ds.n); render(); break;
+    case 'setLoss': S.setup.loss = ds.n==='0' ? '' : String(ds.n); render(); break;
     case 'startKon': newKonMatch(); break;
-    case 'newKon': go('konSetup'); break;
+    case 'newKon': S.setup.win = ''; S.setup.loss = ''; go('konSetup'); break;
     case 'addRound': if (km){ S.sheet = { t:'round', vals:km.names.map(function(){ return ''; }), signs:km.names.map(function(){ return 1; }), focus:true }; render(); } break;
     case 'sign': sh.signs[+ds.i] = -sh.signs[+ds.i]; render(); break;
     case 'saveRound':
       if (!km || !sh) break;
       var row = parseRound(sh.vals, sh.signs); if (!row) break;
+      if (sh.edit){
+        var wasFin = km.status==='finished';
+        km.rounds[sh.idx] = row; konRecalc(km); save();
+        S.sheet = (!wasFin && km.status==='finished') ? { t:'konEnd' } : null;
+        render(); break;
+      }
       km.rounds.push(row);
       var res = konCheck(km);
       if (res){ km.status='finished'; km.result=res; km.finishedAt=Date.now(); S.sheet = { t:'konEnd' }; } else { S.sheet = null; }
       save(); render(); break;
+    case 'editRound':
+      if (!km) break;
+      var ri = +ds.i, rr = km.rounds[ri]; if (!rr) break;
+      S.sheet = { t:'round', edit:true, idx:ri, focus:false,
+                  vals: rr.map(function(v){ return String(Math.abs(v)); }),
+                  signs: rr.map(function(v){ return v<0 ? -1 : 1; }) };
+      render(); break;
+    case 'delRound':
+      if (km && km.rounds[+ds.i]!==undefined){ km.rounds.splice(+ds.i,1); konRecalc(km); save(); }
+      S.sheet = null; render(); break;
     case 'undoRound':
       if (km && km.rounds.length){ km.rounds.pop(); km.status='playing'; delete km.result; delete km.finishedAt; save(); }
       S.sheet = null; render(); break;
@@ -936,6 +985,10 @@ function act(a, ds){
   }
 }
 
+function syncChips(act, val){
+  var n = lim(val), list = document.querySelectorAll('[data-a="'+act+'"]');
+  for (var i=0;i<list.length;i++) list[i].setAttribute('aria-pressed', String(+list[i].dataset.n===n));
+}
 document.addEventListener('click', function(e){
   var t = e.target.closest ? e.target.closest('[data-a]') : null;
   if (!t || t.disabled) return;
@@ -945,8 +998,8 @@ document.addEventListener('input', function(e){
   var el = e.target, id = el.id || '';
   if (/^tn[01]$/.test(id)) S.setup.tn[+id.charAt(2)] = el.value;
   else if (/^kn[0-3]$/.test(id)) S.setup.knames[+id.charAt(2)] = el.value;
-  else if (id==='kwin') S.setup.win = el.value;
-  else if (id==='kloss') S.setup.loss = el.value;
+  else if (id==='kwin'){ S.setup.win = el.value; syncChips('setWin', el.value); }
+  else if (id==='kloss'){ S.setup.loss = el.value; syncChips('setLoss', el.value); }
   else if (/^v[kqds]$|^vt[0-3]$/.test(id)) S.setup.v[id] = el.value;
   else if (/^kr[0-3]$/.test(id) && S.sheet && S.sheet.t==='round'){
     var clean = lat(el.value).replace(/[^0-9]/g,'');
